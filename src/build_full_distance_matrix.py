@@ -7,14 +7,16 @@ from keras.applications import vgg16, inception_v3, resnet50, mobilenet
 from keras import backend as K
 import keras
 import numpy as np
+import boto3
+import io
+import pickle
 
 #Load the VGG model    
 model = vgg16.VGG16(weights='imagenet')
 
+s3_client = boto3.client('s3')
 
-#image_path = ""
-#original_iamge = cv2.imread(image_path)
-
+bucket_arn = 'arn:aws:s3:::ai-output-dump'
 
 layer_names = [layer.name for layer in model.layers]
 
@@ -78,6 +80,15 @@ def draw_heatmap(distance_matrix, ax = None):
 # distance_matrix = get_distance_matrix(out)
 # draw_heatmap(distance_matrix)
 
+
+def write_to_s3(np_array, s3_bucket, filename):
+    array_data = io.BytesIO()
+    pickle.dump(np_array, array_data)
+    array_data.seek(0)
+    s3_client.upload_fileobj(array_data, s3_bucket, filename)
+
+
+
 #----
 
 
@@ -86,6 +97,5 @@ for layer_name in layer_names[20:]:
     flow = get_image_flow('data/flickr30k_images/flickr30k_images/')
     out = predict_flow(trunc_model, flow, steps = 1000)
     distance_matrix = get_distance_matrix(out)
-    np.savetxt('./outputs/'+layer_name+'_output.txt',out)
-
+    write_to_s3(out,'ai-output-dump', layer_name+'_output_45.pkl')
     
